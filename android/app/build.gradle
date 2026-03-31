@@ -105,6 +105,10 @@ android {
             proguardFiles getDefaultProguardFile("proguard-android.txt"), "proguard-rules.pro"
         }
     }
+    packagingOptions {
+    pickFirst 'META-INF/LICENSE'
+    pickFirst 'META-INF/LICENSE.txt'
+    }
 }
 
 dependencies {

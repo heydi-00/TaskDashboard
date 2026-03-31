@@ -1,97 +1,192 @@
-This is a new [**React Native**](https://reactnative.dev) project, bootstrapped using [`@react-native-community/cli`](https://github.com/react-native-community/cli).
+# 📋 TaskDashboard — Dashboard de Tareas Colaborativas
 
-# Getting Started
+Aplicación móvil Android desarrollada con React Native CLI y TypeScript, con arquitectura **offline-first** usando WatermelonDB.
 
-> **Note**: Make sure you have completed the [Set Up Your Environment](https://reactnative.dev/docs/set-up-your-environment) guide before proceeding.
+---
 
-## Step 1: Start Metro
+## 🚀 Tecnologías utilizadas
 
-First, you will need to run **Metro**, the JavaScript build tool for React Native.
+- **Framework:** React Native CLI 0.84.1
+- **Lenguaje:** TypeScript (tipado estricto)
+- **Base de datos local:** WatermelonDB (SQLite)
+- **Manejo de estado:** Zustand
+- **Navegación:** React Navigation
+- **API Externa:** [dummyjson.com/todos](https://dummyjson.com/todos)
 
-To start the Metro dev server, run the following command from the root of your React Native project:
+---
 
-```sh
-# Using npm
-npm start
-
-# OR using Yarn
-yarn start
+## 📁 Estructura del proyecto
+```
+TaskDashboard/
+├── src/
+│   ├── api/              # Servicios de API externa
+│   │   └── taskService.ts
+│   ├── database/         # Configuración WatermelonDB
+│   │   ├── models/
+│   │   │   └── Task.ts
+│   │   ├── schema.ts
+│   │   └── index.ts
+│   ├── store/            # Estado global con Zustand
+│   │   └── taskStore.ts
+│   ├── screens/          # Pantallas de la app
+│   │   └── DashboardScreen.tsx
+│   ├── components/       # Componentes reutilizables
+│   │   ├── TaskItem.tsx
+│   │   └── AvatarView.tsx
+│   └── types/            # Tipos TypeScript
+│       └── index.ts
+├── android/
+│   └── app/src/main/java/com/taskdashboard/
+│       ├── AvatarView.kt          # Vista nativa circular
+│       ├── AvatarViewManager.kt   # Manager del componente nativo
+│       ├── AvatarViewPackage.kt   # Package del componente nativo
+│       ├── CameraModule.kt        # Módulo nativo de cámara
+│       └── CameraPackage.kt       # Package del módulo de cámara
+└── App.tsx
 ```
 
-## Step 2: Build and run your app
+---
 
-With Metro running, open a new terminal window/pane from the root of your React Native project, and use one of the following commands to build and run your Android or iOS app:
+## ⚙️ Requisitos previos
 
-### Android
+- Node.js v18 o superior
+- JDK 17
+- Android Studio con SDK Android 14 (API 34)
+- React Native CLI
 
-```sh
-# Using npm
-npm run android
+---
 
-# OR using Yarn
-yarn android
+## 🛠️ Instalación y ejecución
+
+### 1. Clonar el repositorio
+```bash
+git clone https://github.com/TU_USUARIO/TaskDashboard.git
+cd TaskDashboard
 ```
 
-### iOS
-
-For iOS, remember to install CocoaPods dependencies (this only needs to be run on first clone or after updating native deps).
-
-The first time you create a new project, run the Ruby bundler to install CocoaPods itself:
-
-```sh
-bundle install
+### 2. Instalar dependencias
+```bash
+npm install
 ```
 
-Then, and every time you update your native dependencies, run:
+### 3. Iniciar el emulador
 
-```sh
-bundle exec pod install
+Abre Android Studio y lanza un emulador Android (Pixel 7, API 34).
+
+### 4. Ejecutar la app
+```bash
+npx react-native run-android
 ```
 
-For more information, please visit [CocoaPods Getting Started guide](https://guides.cocoapods.org/using/getting-started.html).
+---
 
-```sh
-# Using npm
-npm run ios
+## 🏗️ Arquitectura Offline-First
 
-# OR using Yarn
-yarn ios
+La app implementa un patrón **offline-first** con WatermelonDB:
+
+### ¿Por qué WatermelonDB?
+
+- Está construido sobre SQLite, lo que garantiza persistencia real en el dispositivo
+- Tiene excelente rendimiento con grandes volúmenes de datos gracias a su arquitectura lazy
+- Soporta operaciones en batch para sincronización eficiente
+- Se integra nativamente con React Native sin puentes adicionales
+
+### Flujo de datos
+```
+Primera apertura:
+API (dummyjson.com) → WatermelonDB (SQLite local) → UI
+
+Uso normal (con o sin internet):
+WatermelonDB (SQLite local) → UI
+
+Pull-to-refresh:
+API → WatermelonDB (actualiza) → UI
+
+Modificaciones offline:
+UI → WatermelonDB (guarda localmente) → UI actualizada
 ```
 
-If everything is set up correctly, you should see your new app running in the Android Emulator, iOS Simulator, or your connected device.
+### Ventajas del enfoque
 
-This is one way to run your app — you can also build it directly from Android Studio or Xcode.
+- La UI **nunca** lee directamente de la API
+- Los cambios (completar tareas, adjuntar fotos) se guardan localmente
+- Funciona completamente **sin conexión a internet**
+- El Pull-to-Refresh sincroniza cuando hay conexión
 
-## Step 3: Modify your app
+---
 
-Now that you have successfully run the app, let's make changes!
+## 🌟 Componente Nativo: AvatarView
 
-Open `App.tsx` in your text editor of choice and make some changes. When you save, your app will automatically update and reflect these changes — this is powered by [Fast Refresh](https://reactnative.dev/docs/fast-refresh).
+Componente de UI nativo desarrollado en **Kotlin** para Android.
 
-When you want to forcefully reload, for example to reset the state of your app, you can perform a full reload:
+### Funcionalidad
 
-- **Android**: Press the <kbd>R</kbd> key twice or select **"Reload"** from the **Dev Menu**, accessed via <kbd>Ctrl</kbd> + <kbd>M</kbd> (Windows/Linux) or <kbd>Cmd ⌘</kbd> + <kbd>M</kbd> (macOS).
-- **iOS**: Press <kbd>R</kbd> in iOS Simulator.
+- Recibe una propiedad `name` desde React Native
+- Extrae las iniciales del nombre (ej: "Santiago Lopez" → "SL")
+- Genera un color de fondo único basado en el hash del nombre
+- Renderiza una vista circular nativa con las iniciales centradas
 
-## Congratulations! :tada:
+### Implementación
 
-You've successfully run and modified your React Native App. :partying_face:
+- `AvatarView.kt` — Vista nativa que extiende `View`
+- `AvatarViewManager.kt` — `SimpleViewManager` que expone la vista a React Native
+- `AvatarViewPackage.kt` — Package que registra el módulo
 
-### Now what?
+---
 
-- If you want to add this new React Native code to an existing application, check out the [Integration guide](https://reactnative.dev/docs/integration-with-existing-apps).
-- If you're curious to learn more about React Native, check out the [docs](https://reactnative.dev/docs/getting-started).
+## 📷 Módulo Nativo: CameraModule (Opcional)
 
-# Troubleshooting
+Módulo nativo en **Kotlin** que permite tomar fotos y vincularlas a tareas.
 
-If you're having issues getting the above steps to work, see the [Troubleshooting](https://reactnative.dev/docs/troubleshooting) page.
+### Funcionalidad
 
-# Learn More
+- Abre la cámara nativa del dispositivo
+- Guarda la foto en el directorio persistente de la app
+- Retorna la URI del archivo a React Native
+- Maneja cancelación sin crashear
+- Persiste la referencia en WatermelonDB (campo `attachmentUri`)
 
-To learn more about React Native, take a look at the following resources:
+---
 
-- [React Native Website](https://reactnative.dev) - learn more about React Native.
-- [Getting Started](https://reactnative.dev/docs/environment-setup) - an **overview** of React Native and how setup your environment.
-- [Learn the Basics](https://reactnative.dev/docs/getting-started) - a **guided tour** of the React Native **basics**.
-- [Blog](https://reactnative.dev/blog) - read the latest official React Native **Blog** posts.
-- [`@facebook/react-native`](https://github.com/facebook/react-native) - the Open Source; GitHub **repository** for React Native.
+## 🤖 Uso de IA
+
+Durante el desarrollo de este proyecto se utilizó **Claude (Anthropic)** como asistente principal.
+
+### Herramientas utilizadas
+
+- **Claude (claude.ai)** — Asistente principal de desarrollo
+
+### ¿Para qué tareas?
+
+- Generación de la estructura inicial del proyecto
+- Implementación del schema y modelos de WatermelonDB
+- Configuración del store con Zustand
+- Creación de componentes de UI (TaskItem, DashboardScreen)
+- Implementación del código Kotlin para AvatarView y CameraModule
+- Resolución de errores de compilación y compatibilidad
+
+### Supervisión humana
+
+La supervisión fue clave en cada paso del proceso:
+
+- **Verificación del entorno:** Configuración manual de variables de entorno, JDK y Android Studio
+- **Revisión de código:** Cada archivo generado fue revisado antes de ser integrado
+- **Depuración:** Los errores de compilación fueron analizados y corregidos iterativamente
+- **Decisiones de arquitectura:** La elección de WatermelonDB, Zustand y la estructura de carpetas fue validada contra los requisitos de la prueba
+- **Pruebas funcionales:** Verificación manual en emulador de cada funcionalidad implementada
+
+---
+
+## ✅ Funcionalidades implementadas
+
+- [x] Sincronización inicial desde API externa
+- [x] Lectura exclusiva desde base de datos local
+- [x] Modificaciones offline (completar/pendiente)
+- [x] Pull-to-refresh para sincronizar
+- [x] Filtros: Todas, Completadas, Pendientes
+- [x] Feedback visual inmediato
+- [x] Componente nativo AvatarView (Kotlin)
+- [x] Módulo nativo CameraModule (Kotlin)
+- [x] Adjuntar foto a tareas
+- [x] Persistencia offline-first de fotos
+
