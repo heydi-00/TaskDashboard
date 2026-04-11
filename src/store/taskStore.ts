@@ -12,11 +12,15 @@ interface TaskStore {
   filter: FilterType;
   isLoading: boolean;
   error: string | null;
+  searchQuery: string;
   loadTasksFromDB: () => Promise<void>;
   syncTasksFromAPI: () => Promise<void>;
   toggleTask: (task: TaskModel) => Promise<void>;
   setFilter: (filter: FilterType) => void;
   attachPhoto: (task: TaskModel) => Promise<void>;
+  createTask: (todo: string) => Promise<void>;
+  deleteTask: (task: TaskModel) => Promise<void>;
+  setSearchQuery: (query: string) => void;
 }
 
 export const useTaskStore = create<TaskStore>((set, get) => ({
@@ -24,6 +28,7 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
   filter: 'all',
   isLoading: false,
   error: null,
+  searchQuery: '',
 
   loadTasksFromDB: async () => {
     try {
@@ -43,17 +48,26 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
       await database.write(async () => {
         const tasksCollection = database.get<TaskModel>('tasks');
         const existingTasks = await tasksCollection.query().fetch();
-        const deleteActions = existingTasks.map(t => t.prepareDestroyPermanently());
-        const createActions = apiTasks.map(task =>
-          tasksCollection.prepareCreate((record: TaskModel) => {
-            record.remoteId = String(task.id);
-            record.todo = task.todo;
-            record.completed = task.completed;
-            record.userId = task.userId;
-            record.attachmentUri = '';
-          })
-        );
-        await database.batch(...deleteActions, ...createActions);
+
+        const actions = apiTasks.map(apiTask => {
+          const existing = existingTasks.find(
+            t => t.remoteId === String(apiTask.id)
+          );
+          if (existing) {
+            return existing.prepareUpdate((record: TaskModel) => {
+              record.todo = apiTask.todo;
+            });
+          } else {
+            return tasksCollection.prepareCreate((record: TaskModel) => {
+              record.remoteId = String(apiTask.id);
+              record.todo = apiTask.todo;
+              record.completed = apiTask.completed;
+              record.userId = apiTask.userId;
+              record.attachmentUri = '';
+            });
+          }
+        });
+        await database.batch(...actions);
       });
       await get().loadTasksFromDB();
     } catch (error) {
@@ -71,6 +85,37 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
   },
 
   setFilter: (filter: FilterType) => set({ filter }),
+
+  setSearchQuery: (query: string) => set({ searchQuery: query }),
+
+  createTask: async (todo: string) => {
+    try {
+      await database.write(async () => {
+        const tasksCollection = database.get<TaskModel>('tasks');
+        await tasksCollection.create((record: TaskModel) => {
+          record.remoteId = `local_${Date.now()}`;
+          record.todo = todo;
+          record.completed = false;
+          record.userId = 0;
+          record.attachmentUri = '';
+        });
+      });
+      await get().loadTasksFromDB();
+    } catch (error) {
+      console.error('Error creating task:', error);
+    }
+  },
+
+  deleteTask: async (task: TaskModel) => {
+    try {
+      await database.write(async () => {
+        await task.destroyPermanently();
+      });
+      await get().loadTasksFromDB();
+    } catch (error) {
+      console.error('Error deleting task:', error);
+    }
+  },
 
   attachPhoto: async (task: TaskModel) => {
     try {

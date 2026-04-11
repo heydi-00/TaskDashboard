@@ -1,4 +1,4 @@
-import React, { useRef, useEffect } from 'react';
+import React, { useRef, useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -7,6 +7,8 @@ import {
   TouchableOpacity,
   Image,
   Animated,
+  Modal,
+  StatusBar,
 } from 'react-native';
 import TaskModel from '../database/models/Task';
 
@@ -14,13 +16,15 @@ interface Props {
   task: TaskModel;
   onToggle: (task: TaskModel) => void;
   onAttachPhoto: (task: TaskModel) => void;
+  onDelete: (task: TaskModel) => void;
   index: number;
 }
 
-const TaskItem: React.FC<Props> = ({ task, onToggle, onAttachPhoto, index }) => {
+const TaskItem: React.FC<Props> = ({ task, onToggle, onAttachPhoto, onDelete, index }) => {
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(50)).current;
   const scaleAnim = useRef(new Animated.Value(1)).current;
+  const [modalVisible, setModalVisible] = useState(false);
 
   useEffect(() => {
     Animated.parallel([
@@ -58,61 +62,108 @@ const TaskItem: React.FC<Props> = ({ task, onToggle, onAttachPhoto, index }) => 
   };
 
   return (
-    <Animated.View style={[
-      styles.container,
-      task.completed && styles.containerCompleted,
-      {
-        opacity: fadeAnim,
-        transform: [
-          { translateY: slideAnim },
-          { scale: scaleAnim },
-        ],
-      },
-    ]}>
-      {/* Indicador lateral */}
-      <View style={[
-        styles.indicator,
-        task.completed && styles.indicatorCompleted
-      ]} />
-
-      <View style={styles.content}>
-        <Text style={[
-          styles.title,
-          task.completed && styles.titleCompleted
-        ]}>
-          {task.todo}
-        </Text>
-
-        {/* Foto adjunta o botón */}
-        {task.attachmentUri ? (
+    <>
+      {/* Modal visor de imagen */}
+      <Modal
+        visible={modalVisible}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setModalVisible(false)}
+      >
+        <StatusBar backgroundColor="#000000" barStyle="light-content" />
+        <View style={styles.modalContainer}>
           <TouchableOpacity
-            onPress={() => onAttachPhoto(task)}
-            activeOpacity={0.8}
+            style={styles.closeBtn}
+            onPress={() => setModalVisible(false)}
           >
-            <Image
-              source={{ uri: `file://${task.attachmentUri}` }}
-              style={styles.thumbnail}
-            />
-            <Text style={styles.replaceText}>📷 Reemplazar foto</Text>
+            <Text style={styles.closeBtnText}>✕</Text>
           </TouchableOpacity>
-        ) : (
+          <Text style={styles.modalImageTitle} numberOfLines={2}>
+            {task.todo}
+          </Text>
+          <Image
+            source={{ uri: `file://${task.attachmentUri}` }}
+            style={styles.fullImage}
+            resizeMode="contain"
+          />
           <TouchableOpacity
-            style={styles.cameraBtn}
-            onPress={() => onAttachPhoto(task)}
-            activeOpacity={0.7}
+            style={styles.replaceBtn}
+            onPress={() => {
+              setModalVisible(false);
+              onAttachPhoto(task);
+            }}
           >
-            <Text style={styles.cameraBtnText}>📷 Adjuntar foto</Text>
+            <Text style={styles.replaceBtnText}>📷 Reemplazar foto</Text>
           </TouchableOpacity>
-        )}
-      </View>
+        </View>
+      </Modal>
 
-      <Switch
-        value={task.completed}
-        onValueChange={handleToggle}
-        trackColor={{ false: '#2d2d4e', true: '#7c3aed' }}
-        thumbColor={task.completed ? '#ffffff' : '#a78bfa'}
-      />
-    </Animated.View>
+      {/* Tarjeta de tarea */}
+      <Animated.View style={[
+        styles.container,
+        task.completed && styles.containerCompleted,
+        {
+          opacity: fadeAnim,
+          transform: [
+            { translateY: slideAnim },
+            { scale: scaleAnim },
+          ],
+        },
+      ]}>
+        <View style={[
+          styles.indicator,
+          task.completed && styles.indicatorCompleted
+        ]} />
+
+        <View style={styles.content}>
+          <View style={styles.titleRow}>
+            <Text style={[
+              styles.title,
+              task.completed && styles.titleCompleted
+            ]}>
+              {task.todo}
+            </Text>
+            <TouchableOpacity
+              onPress={() => onDelete(task)}
+              style={styles.deleteBtn}
+              activeOpacity={0.7}
+            >
+              <Text style={styles.deleteBtnText}>🗑️</Text>
+            </TouchableOpacity>
+          </View>
+
+            {task.attachmentUri && task.attachmentUri.length > 0 ? (            <TouchableOpacity
+              onPress={() => setModalVisible(true)}
+              activeOpacity={0.8}
+              style={styles.thumbnailContainer}
+            >
+              <Image
+                source={{ uri: `file://${task.attachmentUri}` }}
+                style={styles.thumbnail}
+              />
+              <View style={styles.viewOverlay}>
+                <Text style={styles.viewOverlayText}>👁 Ver foto</Text>
+              </View>
+            </TouchableOpacity>
+          ) : (
+            <TouchableOpacity
+              style={styles.cameraBtn}
+              onPress={() => onAttachPhoto(task)}
+              activeOpacity={0.7}
+            >
+              <Text style={styles.cameraBtnText}>📷 Adjuntar foto</Text>
+            </TouchableOpacity>
+          )}
+        </View>
+
+        <Switch
+          value={task.completed}
+          onValueChange={handleToggle}
+          trackColor={{ false: '#2d2d4e', true: '#7c3aed' }}
+          thumbColor={task.completed ? '#ffffff' : '#a78bfa'}
+        />
+      </Animated.View>
+    </>
   );
 };
 
@@ -149,15 +200,28 @@ const styles = StyleSheet.create({
     flex: 1,
     padding: 14,
   },
+  titleRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    marginBottom: 8,
+  },
   title: {
+    flex: 1,
     fontSize: 15,
     color: '#e2e8f0',
-    marginBottom: 8,
     lineHeight: 22,
+    marginRight: 8,
   },
   titleCompleted: {
     textDecorationLine: 'line-through',
     color: '#4a4a6a',
+  },
+  deleteBtn: {
+    padding: 4,
+  },
+  deleteBtnText: {
+    fontSize: 16,
   },
   cameraBtn: {
     backgroundColor: '#0f0f1a',
@@ -172,15 +236,80 @@ const styles = StyleSheet.create({
     fontSize: 11,
     color: '#a78bfa',
   },
-  thumbnail: {
-    width: 56,
-    height: 56,
-    borderRadius: 10,
-    marginBottom: 4,
+  thumbnailContainer: {
+    position: 'relative',
+    alignSelf: 'flex-start',
   },
-  replaceText: {
-    fontSize: 11,
-    color: '#7c3aed',
+  thumbnail: {
+    width: 70,
+    height: 70,
+    borderRadius: 10,
+  },
+  viewOverlay: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    borderBottomLeftRadius: 10,
+    borderBottomRightRadius: 10,
+    paddingVertical: 3,
+    alignItems: 'center',
+  },
+  viewOverlayText: {
+    fontSize: 9,
+    color: '#fff',
+  },
+  modalContainer: {
+    flex: 1,
+    backgroundColor: '#000000',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  closeBtn: {
+    position: 'absolute',
+    top: 50,
+    right: 20,
+    backgroundColor: '#1a1a2e',
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 10,
+  },
+  closeBtnText: {
+    color: '#ffffff',
+    fontSize: 18,
+    fontWeight: 'bold',
+  },
+  modalImageTitle: {
+    position: 'absolute',
+    top: 55,
+    left: 20,
+    right: 70,
+    color: '#a78bfa',
+    fontSize: 14,
+    fontWeight: '500',
+  },
+  fullImage: {
+    width: '100%',
+    height: '70%',
+    borderRadius: 12,
+  },
+  replaceBtn: {
+    position: 'absolute',
+    bottom: 50,
+    backgroundColor: '#7c3aed',
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    borderRadius: 25,
+  },
+  replaceBtnText: {
+    color: '#ffffff',
+    fontSize: 15,
+    fontWeight: 'bold',
   },
 });
 
