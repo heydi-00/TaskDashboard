@@ -33,6 +33,7 @@ const DashboardScreen: React.FC = () => {
     attachPhoto,
     createTask,
     deleteTask,
+    editTask,
     setSearchQuery,
   } = useTaskStore();
 
@@ -180,6 +181,7 @@ const DashboardScreen: React.FC = () => {
               onToggle={toggleTask}
               onAttachPhoto={attachPhoto}
               onDelete={deleteTask}
+              onEdit={editTask}
               index={index}
             />
           )}

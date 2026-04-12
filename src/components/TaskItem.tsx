@@ -9,6 +9,9 @@ import {
   Animated,
   Modal,
   StatusBar,
+  TextInput,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import TaskModel from '../database/models/Task';
 
@@ -17,14 +20,17 @@ interface Props {
   onToggle: (task: TaskModel) => void;
   onAttachPhoto: (task: TaskModel) => void;
   onDelete: (task: TaskModel) => void;
+  onEdit: (task: TaskModel, newTodo: string) => void;
   index: number;
 }
 
-const TaskItem: React.FC<Props> = ({ task, onToggle, onAttachPhoto, onDelete, index }) => {
+const TaskItem: React.FC<Props> = ({ task, onToggle, onAttachPhoto, onDelete, onEdit, index }) => {
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(50)).current;
   const scaleAnim = useRef(new Animated.Value(1)).current;
   const [modalVisible, setModalVisible] = useState(false);
+  const [editModalVisible, setEditModalVisible] = useState(false);
+  const [editText, setEditText] = useState(task.todo);
 
   useEffect(() => {
     Animated.parallel([
@@ -98,6 +104,54 @@ const TaskItem: React.FC<Props> = ({ task, onToggle, onAttachPhoto, onDelete, in
         </View>
       </Modal>
 
+      {/* Modal editar tarea */}
+      <Modal
+        visible={editModalVisible}
+        transparent={true}
+        animationType="slide"
+        onRequestClose={() => setEditModalVisible(false)}
+      >
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          style={styles.editModalOverlay}
+        >
+          <View style={styles.editModalContent}>
+            <Text style={styles.editModalTitle}>✏️ Editar Tarea</Text>
+            <TextInput
+              style={styles.editInput}
+              value={editText}
+              onChangeText={setEditText}
+              multiline
+              autoFocus
+              placeholderTextColor="#4a4a6a"
+            />
+            <View style={styles.editModalButtons}>
+              <TouchableOpacity
+                style={styles.cancelBtn}
+                onPress={() => setEditModalVisible(false)}
+              >
+                <Text style={styles.cancelBtnText}>Cancelar</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[
+                  styles.saveBtn,
+                  !editText.trim() && styles.saveBtnDisabled
+                ]}
+                onPress={() => {
+                  if (editText.trim()) {
+                    onEdit(task, editText.trim());
+                    setEditModalVisible(false);
+                  }
+                }}
+                disabled={!editText.trim()}
+              >
+                <Text style={styles.saveBtnText}>Guardar ✓</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
+
       {/* Tarjeta de tarea */}
       <Animated.View style={[
         styles.container,
@@ -110,12 +164,16 @@ const TaskItem: React.FC<Props> = ({ task, onToggle, onAttachPhoto, onDelete, in
           ],
         },
       ]}>
+        {/* Indicador lateral */}
         <View style={[
           styles.indicator,
           task.completed && styles.indicatorCompleted
         ]} />
 
+        {/* Contenido */}
         <View style={styles.content}>
+
+          {/* Fila título + botones */}
           <View style={styles.titleRow}>
             <Text style={[
               styles.title,
@@ -123,16 +181,30 @@ const TaskItem: React.FC<Props> = ({ task, onToggle, onAttachPhoto, onDelete, in
             ]}>
               {task.todo}
             </Text>
-            <TouchableOpacity
-              onPress={() => onDelete(task)}
-              style={styles.deleteBtn}
-              activeOpacity={0.7}
-            >
-              <Text style={styles.deleteBtnText}>🗑️</Text>
-            </TouchableOpacity>
+            <View style={styles.actionBtns}>
+              <TouchableOpacity
+                onPress={() => {
+                  setEditText(task.todo);
+                  setEditModalVisible(true);
+                }}
+                style={styles.editBtn}
+                activeOpacity={0.7}
+              >
+                <Text style={styles.editBtnText}>✏️</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={() => onDelete(task)}
+                style={styles.deleteBtn}
+                activeOpacity={0.7}
+              >
+                <Text style={styles.deleteBtnText}>🗑️</Text>
+              </TouchableOpacity>
+            </View>
           </View>
 
-            {task.attachmentUri && task.attachmentUri.length > 0 ? (            <TouchableOpacity
+          {/* Foto o botón cámara */}
+          {task.attachmentUri && task.attachmentUri.length > 0 ? (
+            <TouchableOpacity
               onPress={() => setModalVisible(true)}
               activeOpacity={0.8}
               style={styles.thumbnailContainer}
@@ -154,8 +226,10 @@ const TaskItem: React.FC<Props> = ({ task, onToggle, onAttachPhoto, onDelete, in
               <Text style={styles.cameraBtnText}>📷 Adjuntar foto</Text>
             </TouchableOpacity>
           )}
+
         </View>
 
+        {/* Switch */}
         <Switch
           value={task.completed}
           onValueChange={handleToggle}
@@ -202,14 +276,13 @@ const styles = StyleSheet.create({
   },
   titleRow: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'flex-start',
     marginBottom: 8,
   },
   title: {
     flex: 1,
     fontSize: 15,
-    color: '#e2e8f0',
+    color: '#ffffff',
     lineHeight: 22,
     marginRight: 8,
   },
@@ -217,11 +290,22 @@ const styles = StyleSheet.create({
     textDecorationLine: 'line-through',
     color: '#4a4a6a',
   },
+  actionBtns: {
+    flexDirection: 'row',
+    gap: 4,
+    alignItems: 'center',
+  },
+  editBtn: {
+    padding: 4,
+  },
+  editBtnText: {
+    fontSize: 14,
+  },
   deleteBtn: {
     padding: 4,
   },
   deleteBtnText: {
-    fontSize: 16,
+    fontSize: 14,
   },
   cameraBtn: {
     backgroundColor: '#0f0f1a',
@@ -307,6 +391,71 @@ const styles = StyleSheet.create({
     borderRadius: 25,
   },
   replaceBtnText: {
+    color: '#ffffff',
+    fontSize: 15,
+    fontWeight: 'bold',
+  },
+  editModalOverlay: {
+    flex: 1,
+    justifyContent: 'flex-end',
+    backgroundColor: 'rgba(0,0,0,0.7)',
+  },
+  editModalContent: {
+    backgroundColor: '#1a1a2e',
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    padding: 24,
+    borderWidth: 1,
+    borderColor: '#2d2d4e',
+  },
+  editModalTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#ffffff',
+    marginBottom: 16,
+  },
+  editInput: {
+    backgroundColor: '#0f0f1a',
+    borderRadius: 14,
+    padding: 16,
+    color: '#e2e8f0',
+    fontSize: 15,
+    borderWidth: 1,
+    borderColor: '#2d2d4e',
+    minHeight: 100,
+    textAlignVertical: 'top',
+    marginBottom: 16,
+  },
+  editModalButtons: {
+    flexDirection: 'row',
+    gap: 12,
+    marginBottom: 16,
+  },
+  cancelBtn: {
+    flex: 1,
+    paddingVertical: 14,
+    borderRadius: 14,
+    backgroundColor: '#0f0f1a',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#2d2d4e',
+  },
+  cancelBtnText: {
+    color: '#a78bfa',
+    fontSize: 15,
+    fontWeight: '500',
+  },
+  saveBtn: {
+    flex: 1,
+    paddingVertical: 14,
+    borderRadius: 14,
+    backgroundColor: '#7c3aed',
+    alignItems: 'center',
+  },
+  saveBtnDisabled: {
+    backgroundColor: '#2d2d4e',
+  },
+  saveBtnText: {
     color: '#ffffff',
     fontSize: 15,
     fontWeight: 'bold',

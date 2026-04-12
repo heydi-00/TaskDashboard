@@ -20,6 +20,7 @@ interface TaskStore {
   attachPhoto: (task: TaskModel) => Promise<void>;
   createTask: (todo: string) => Promise<void>;
   deleteTask: (task: TaskModel) => Promise<void>;
+  editTask: (task: TaskModel, newTodo: string) => Promise<void>;
   setSearchQuery: (query: string) => void;
 }
 
@@ -114,6 +115,19 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
       await get().loadTasksFromDB();
     } catch (error) {
       console.error('Error deleting task:', error);
+    }
+  },
+
+  editTask: async (task: TaskModel, newTodo: string) => {
+    try {
+      await database.write(async () => {
+        await task.update((record: TaskModel) => {
+          record.todo = newTodo;
+        });
+      });
+      await get().loadTasksFromDB();
+    } catch (error) {
+      console.error('Error editing task:', error);
     }
   },
 
